@@ -48,13 +48,17 @@ def simpCore (decl : Name) (phase : PhaseSpec) : MetaM LocalRuleSetMember :=
     return .global $ .normSimpRule { name, entries }
 
 def simp : RuleBuilder := λ input => do
-  if let some decl ← elabGlobalRuleIdent? input.term then
-    simpCore decl input.phase
-  else
-    checkElabRuleTermForSimp input.term (isSimpAll := true) -- TODO (isSimpAll := true) correct?
-    return .localNormSimpRule {
-      id := ← mkFreshId
-      simpTheorem := input.term
-    }
+  -- Rules with a `←` modifier are handled by the local rule machinery, which
+  -- supports both local hypotheses and global theorems (via core simp's
+  -- `←` handling).
+  if ! input.reverse then
+    if let some decl ← elabGlobalRuleIdent? input.term then
+      return ← simpCore decl input.phase
+  checkElabRuleTermForSimp input.term input.reverse (isSimpAll := true) -- TODO (isSimpAll := true) correct?
+  return .localNormSimpRule {
+    id := ← mkFreshId
+    simpTheorem := input.term
+    reverse := input.reverse
+  }
 
 end Aesop.RuleBuilder
